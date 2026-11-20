@@ -1,3 +1,6 @@
+from prompt_optim import llm
+from src.chunking import RaptorConfig
+from src.chunking import build_raptor_tree
 from qdrant_client.conversions.common_types import Points
 from sqlalchemy import false
 from langchain_openai import ChatOpenAI 
@@ -34,12 +37,9 @@ if __name__ == "__main__":
             vectors_config=models.VectorParams(size=DIM,distance=models.Distance.COSINE),
             hnsw_config=models.HnswConfig(m=32,ef_construct=256,hnsw_ef=256)
         )
-
     encoder = SentenceTransformer(ENCODER)
-    docs = load_root(DIR)
-
-    for (fname,file) in docs:
-        pass
+    doc_map = load_root(DIR)
+    root = build_raptor_tree([doc for file in doc_map.values() for doc in file],embed=encoder,summarize=lambda text: llm(text, pconf, cconf),config=RaptorConfig())
 
 def encode(s:str) -> list[float]:
     return encoder.encode(s,normalize_embeddings=True)
