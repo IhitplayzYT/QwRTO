@@ -3,26 +3,43 @@ from sqlalchemy import false
 from langchain_openai import ChatOpenAI 
 from qdrant_client import QdrantClient 
 from qdrant_client.models import models
-from helper import CLI
+from sentence_transformers import SentenceTransformer
+try:
+    from .helper import CLI
+    from .ingestor import load_root
+    from .prompt_optim import purify
+except ImportError:
+    from helper import CLI
+    from ingestor import load_root
+    from prompt_optim import purify
 
-clargs = CLI.parse()
-QUERY = clargs.query
-DIR = clargs.dir
-DIM = clargs.dim
-COLLECTION = clargs.collection_name
+if __name__ == "__main__":
+    clargs = CLI().parse()
+    QUERY = clargs.query
+    DIR = clargs.dir
+    DIM = clargs.dim
+    COLLECTION = clargs.collection_name
+    ENCODER = "all-MiniLM-L6-v2"
+    conn = QdrantClient(host="localhost",grpc_port=6334,port=6333,prefer_grpc=True)
+    pconf = clargs.prompt_optim_conf
+    cconf = clargs.chatbot_conf
+    purified = purify(QUERY,pconf,cconf)
 
-conn = QdrantClient(host="localhost",grpc_port=6334,port=6333,prefer_grpc=True)
-if not conn.collection_exists(COLLECTION): 
-    # Create the configuration for the collection
-    conn.create_collection(
-        collection_name=COLLECTION,
-        optimizers_config=models.OptimizersConfig(prevent_unoptimized=True,max_optimization_threads=4),
-        vectors_config=models.VectorParams(size=DIM,distance=models.Distance.COSINE),
-        hnsw_config=models.HnswConfig(m=32,ef_construct=256,hnsw_ef=256)
-    )
+    
+    if not conn.collection_exists(COLLECTION): 
+        # Create the configuration for the collection
+        conn.create_collection(
+            collection_name=COLLECTION,
+            optimizers_config=models.OptimizersConfig(prevent_unoptimized=True,max_optimization_threads=4),
+            vectors_config=models.VectorParams(size=DIM,distance=models.Distance.COSINE),
+            hnsw_config=models.HnswConfig(m=32,ef_construct=256,hnsw_ef=256)
+        )
 
+    encoder = SentenceTransformer(ENCODER)
+    docs = load_root(DIR)
 
+    for (fname,file) in docs:
+        pass
 
-
-
-
+def encode(s:str) -> list[float]:
+    return encoder.encode(s,normalize_embeddings=True)

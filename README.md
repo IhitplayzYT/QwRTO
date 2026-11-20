@@ -55,3 +55,32 @@ OCR is attempted for pages with fewer than 40 extractable characters. Install
 Tesseract and the selected language data (English by default) to enable it.
 OCR status is recorded under `metadata["ocr"]`; if the OCR engine is unavailable,
 native PDF extraction still returns normally.
+
+## CLI chatbot configuration
+
+Pass JSON files for the chatbot model and prompt optimization settings with
+`--chatbot-conf` and `--prompt-optim-conf`. Both options also accept the aliases
+`--chatbot-config` and `--prompt-optim-config`. Omitted fields use the
+configuration class defaults.
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "temp": 0.0,
+  "max_tokens": 1000
+}
+```
+
+```json
+{
+  "use_hyde": true,
+  "use_multi_query": [false, 4, 5],
+  "use_query2doc": true,
+  "use_stepback": true,
+  "use_decompose": 5,
+  "use_qexpand": 5
+}
+```
+
+Example: `python -m src.main --query "What is in the report?" --chatbot-conf chatbot.json --prompt-optim-conf prompt-optim.json`.
