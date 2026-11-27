@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import hashlib
 import math
 import re
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 @dataclass
 class RaptorConfig:
@@ -52,9 +52,9 @@ def split_text(text: str, *, chunk_size: int = 400, chunk_overlap: int = 60) -> 
     chunks = []
     for st in range(0, len(spans), chunk_size - chunk_overlap):
         ed = min(st + chunk_size, len(spans))
-        if ed == len(spans): break
         x = text[spans[st].start():spans[ed - 1].end()].strip()
         if x: chunks.append(x)
+        if ed == len(spans): break
     return chunks
 
 
@@ -74,7 +74,6 @@ def doc_vals(document: Any) -> tuple[str, str | None, int | None, dict[str, Any]
     if page is not None: page = int(page)
     return text, src, page, dict(metadata) if isinstance(metadata, Mapping) else {}
 
-
 # Use the Documents params to generate randomised ids
 def gen_id(level: int, source: str | None, page: int | None, ordinal: int, text: str) -> str: return hashlib.sha256(f"{level}\0{source or ''}\0{page or ''}\0{ordinal}\0{hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]}".encode("utf-8")).hexdigest()[:24]
 
@@ -82,7 +81,8 @@ def gen_id(level: int, source: str | None, page: int | None, ordinal: int, text:
 def chunk_documents(documents: Iterable[Any],*,chunk_size: int = 400,chunk_overlap: int = 60) -> list[RaptorNode]:
     leaves: list[RaptorNode] = []
     for document_index, document in enumerate(documents):
-        text,source,page,metadata = document, None, None, {} if isinstance(document,str) else doc_vals(document)
+        if isinstance(document, str): text, source, page, metadata = document, None, None, {}
+        else: text, source, page, metadata = doc_vals(document)
         for chunk_index, chunk in enumerate(split_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)):
             metadata = dict(metadata)
             metadata.update({"document_index": document_index, "chunk_index": chunk_index})
@@ -120,7 +120,8 @@ def cluster_embeddings(vectors: Sequence[Sequence[float]],*,similarity_threshold
     centroids: list[list[float]] = []
     for i, vector in enumerate(vectors):
         candidates = [(cosine_sim(vector, centroid), cluster_idx) for cluster_idx, (cluster, centroid) in enumerate(zip(clusters, centroids)) if len(cluster) < max_cluster_size]
-        best_sim,best_clust = max(candidates, key=lambda item: (item[0], -item[1])) if candidates else -math.inf, -1
+        if candidates: best_sim, best_clust = max(candidates, key=lambda item: (item[0], -item[1]))
+        else: best_sim, best_clust = -math.inf, -1
         if best_sim >= similarity_threshold:
             cluster = clusters[best_clust]
             cluster.append(i)
@@ -144,7 +145,7 @@ def build_raptor_tree(documents: Iterable[Any],*,embed,summarize,config: RaptorC
     active = list(nodes)
     for level in range(1, conf.max_depth + 1):
         if len(active) < 2: break
-        groups = cluster_embeddings(embed_texts([node.text for node in active], embed),similarity_threshold=conf.similarity_threshold,max_cluster_size=conf.max_cluster_size)
+        groups = cluster_embeddings(embed_texts([node.text for node in active], embed),similarity_threshold=conf.similarity_thresh,max_cluster_size=conf.max_cluster_size)
         nxt: list[RaptorNode] = []
         merged = False
         for g in groups:
@@ -155,7 +156,7 @@ def build_raptor_tree(documents: Iterable[Any],*,embed,summarize,config: RaptorC
             merged = True
             summary = summarize_cluster([child.text for child in children], summarize)
             child_ids = tuple(child.id for child in children)
-            parent_id = gen_id(level, None, None, len(nodes), summary + "\0".join(child_ids))
+            parent_id = gen_id(level, None, None, 0, "\0".join(child_ids))
             parent = RaptorNode(id=parent_id,text=summary,level=level,metadata={"child_count": len(children), "sources": sorted({child.source for child in children if child.source})},children=child_ids)
             nodes.append(parent)
             nxt.append(parent)

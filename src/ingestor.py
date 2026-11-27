@@ -8,10 +8,8 @@ from typing import Any
 import pymupdf
 from docx import Document as WordDocument
 
-TEXT_EXTENSIONS = {
-    "txt", "md", "markdown", "csv", "tsv", "json", "jsonl", "xml",
-    "html", "htm", "yaml", "yml", "toml", "ini", "log",
-}
+# For now we arent doing code aware chunkign for code files
+TEXT_EXTENSIONS = {"txt", "md", "markdown", "csv", "tsv", "ini", "json", "jsonl", "xml", "html", "htm", "yaml", "yml", "toml", "ini", "log", "py", "rs", "go", "cpp", "hpp", "c", "c", "java"}
 SUPPORTED_EXTENSIONS = TEXT_EXTENSIONS | {"pdf", "docx"}
 
 @dataclass

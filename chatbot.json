@@ -1,0 +1,6 @@
+{
+  "provider": "ollama",
+  "model": "qwen3:1.7b",
+  "temp": 0.0,
+  "max_tokens": 1000
+}
