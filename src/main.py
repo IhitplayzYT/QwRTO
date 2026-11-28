@@ -9,6 +9,7 @@ from .helper import CLI
 from .ingestor import load_root
 from .prompt_optim import llm
 from .retrieval import build_answer_prompt, multi_level_retrieve
+from .rerank import rerank
 
 if __name__ == "__main__":
     clargs = CLI().parse()
@@ -60,11 +61,9 @@ if __name__ == "__main__":
     if clargs.query:
         query_vec = encoder.encode(clargs.query, normalize_embeddings=True).tolist()
         retrieved = multi_level_retrieve(conn,COLLECTION,query_vec,(n.level for n in root.nodes))
-
-        # Reranking 
-        # TODO:
-
+        retrieved = rerank(clargs.query, retrieved, top_k=10)
         if not retrieved: print("No matching context found for that query.")
+        
         else:
             answer = llm(build_answer_prompt(clargs.query, retrieved), pconf, cconf)
             print(f"\nAnswer:\n{answer}")
